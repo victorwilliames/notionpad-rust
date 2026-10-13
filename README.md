@@ -33,17 +33,17 @@ Build otimizado (desktop):
 cargo build --release
 ```
 
-É necessário ter as dependências de compilação gráfica do Slint e de diálogos nativos instaladas no Linux. Windows/macOS usam os recursos do sistema conforme o framework.
+É necessário ter as dependências de compilação gráfica do Slint e de diálogos nativos instaladas no Linux. Os targets Apple ficam para outra etapa, sem bloquearem Windows, Linux ou Android.
 
-## Plataformas planejadas
+## Plataformas e prioridade
 
 | Plataforma | Meta | Situação |
 |---|---|---|
-| Windows 10/11 | Executável nativo | Protótipo ainda sem validação de build |
-| macOS | Aplicativo nativo | Protótipo ainda sem validação de build |
-| Linux | Executável nativo | Protótipo ainda sem validação de build |
-| Android | APK/AAB com lógica Rust | Planejado, requer entrada Android |
-| iOS / iPadOS | App com lógica Rust | Planejado, requer macOS + Xcode |
+| Windows 10/11 | PRIORIDADE AGORA | Desktop: validar build, UX e benchmarks |
+| Linux | PRIORIDADE AGORA | Desktop: validar build, UX e benchmarks |
+| Android | PRIORIDADE AGORA | Implementar entrada Android, APK e UX por toque |
+| macOS | DEPOIS | Manter arquitetura compatível; sem build ativo |
+| iOS / iPadOS | DEPOIS | Manter arquitetura compatível; exigirá ecossistema Apple |
 
 O código foi adicionado sem uma compilação local verificada até este ponto. Não há promessa de performance antes de benchmarks.
 
@@ -51,6 +51,15 @@ O código foi adicionado sem uma compilação local verificada até este ponto. 
 
 Ver [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para decisões, limitações da UI temporária, critérios de performance, portabilidade e plano de evolução.
 
+## Open source e comunidade
+
+O NotionPad é **gratuito, open source e feito para colaboração**. É possível usar, estudar, fazer forks e enviar melhorias.
+Quer participar? Leia [CONTRIBUTING.md](CONTRIBUTING.md), abra uma Issue para relatar erros ou propor recursos e envie Pull Requests.
+
+Não existe paywall, assinatura ou plano pago planejado para o NotionPad.
+
 ## Licença
 
-Código próprio: MIT. O Slint possui licenças próprias (inclusive royalty-free com atribuição para desktop/mobile). Leia as condições antes de distribuir.
+O **código próprio do NotionPad** usa [MIT](LICENSE): uma licença permissiva que permite uso, redistribuição e modificações, inclusive em projetos comerciais, desde que os avisos de licença sejam preservados. A MIT **não obriga** que forks permaneçam open source.
+
+Dependências possuem licenças próprias. A interface usa **Slint** e, sob a licença Royalty-Free para desktop/mobile, a distribuição requer atribuição por `AboutSlint` ou badge no site público de distribuição. Vamos implementar essa atribuição antes da primeira release binária. Referência: <https://slint.dev/terms-and-conditions>.
