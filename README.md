@@ -4,14 +4,19 @@ Novo projeto experimental: um editor de notas e código focado em **Rust, perfor
 
 > Projeto independente, criado do zero. O antigo [NotionPad C#](https://github.com/victorwilliames/notionpad-csharp) é apenas referência de funcionalidades e UX.
 
-## Status: fundação / protótipo desktop
+## Status: primeiro editor utilizável (Etapas 0, 1 e 2 concluídas)
 
 Já existem:
-- motor de texto Rust com `Ropey` e testes para Unicode/edição;
-- janela Slint (sem Electron, WebView, HTML ou JavaScript);
-- edição inicial de texto, abrir arquivo, salvar arquivo UTF-8 e proteção simples contra descarte acidental de alterações.
+- **Múltiplas abas**: criação (+), alternância, fechamento seguro e indicador de alterações não salvas (`●`);
+- **Motor de texto em Rust** com `Ropey`, Unicode estrito e cálculo em tempo real de linhas, palavras e caracteres;
+- **Salvamento seguro e atômico** em UTF-8 preservando integridade contra interrupções de gravação;
+- **Identidade Notion**: capas visuais sólidas e gradientes, controle de exibição, galeria de presets e botão para remoção;
+- **Ícones de página**: seletor rápido de emojis Notion, posicionamento com sobreposição de capa e remoção de ícone;
+- **Compatibilidade com metadados do NotionPad original**: leitura e persistência em `page_metadata.tsv`;
+- **Interface compilada nativa em Slint**: inicialização rápida e sem runtime web (zero Electron/WebView);
+- **Suíte de testes automatizados e Clippy** passando sem avisos (`cargo test` e `cargo clippy -D warnings`).
 
-Ainda **não** existem: editor de texto rico, syntax highlighting, múltiplas abas, capas, ícones, virtualização, mobile ou benchmarking validado. O campo TextEdit inicial é temporário.
+Ainda no roadmap das próximas etapas: editor rico/blocos avançados, syntax highlighting com parsing incremental e APK Android.
 
 ## Executar
 
