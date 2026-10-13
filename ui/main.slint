@@ -1,0 +1,92 @@
+import { Button, TextEdit, HorizontalLayout, VerticalLayout } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "NotionPad Rust • laboratório";
+    width: 1024px;
+    height: 720px;
+    min-width: 500px;
+    min-height: 400px;
+    background: #191919;
+
+    in-out property <string> document-title: "Sem título";
+    in-out property <string> editor-text: "";
+    in-out property <string> status-message: "Rust + Slint • protótipo inicial";
+
+    callback document-edited();
+    callback request-new();
+    callback request-open();
+    callback request-save();
+
+    VerticalLayout {
+        spacing: 0px;
+
+        Rectangle {
+            height: 54px;
+            background: #232323;
+
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 10px;
+                Text {
+                    text: "✦ NotionPad";
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #eeeeee;
+                    vertical-alignment: center;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Button {
+                    text: "Nova nota";
+                    clicked => { root.request-new(); }
+                }
+                Button {
+                    text: "Abrir";
+                    clicked => { root.request-open(); }
+                }
+                Button {
+                    text: "Salvar";
+                    clicked => { root.request-save(); }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #191919;
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                padding: 28px;
+                spacing: 18px;
+
+                Text {
+                    text: root.document-title;
+                    color: #f5f5f5;
+                    font-size: 30px;
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                TextEdit {
+                    text <=> root.editor-text;
+                    edited(_text) => { root.document-edited(); }
+                    placeholder-text: "Comece a escrever...";
+                    font-size: 16px;
+                }
+            }
+        }
+
+        Rectangle {
+            height: 30px;
+            background: #242424;
+            HorizontalLayout {
+                padding: 10px;
+                Text {
+                    text: root.status-message;
+                    color: #a9a9a9;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
