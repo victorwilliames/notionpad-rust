@@ -9,7 +9,7 @@ use std::rc::Rc;
 slint::include_modules!();
 
 const PRESET_COVERS: &[(&str, bool, &str, &str)] = &[
-    ("Sunset", true, "#FF416C", "#FF4B2B"),
+    ("Pôr do Sol", true, "#FF416C", "#FF4B2B"),
     ("Aurora", true, "#0F2027", "#2C5364"),
     ("Cyberpunk", true, "#2E0854", "#D62976"),
     ("Esmeralda", true, "#051923", "#00A896"),
@@ -17,6 +17,10 @@ const PRESET_COVERS: &[(&str, bool, &str, &str)] = &[
     ("Noite", true, "#09122C", "#2C3E50"),
     ("Oceano", false, "#142850", ""),
     ("Púrpura", false, "#2A163E", ""),
+    ("Ardósia", false, "#20272F", ""),
+    ("Vinho", false, "#3A1010", ""),
+    ("Floresta", false, "#143020", ""),
+    ("Âmbar", false, "#3E2A10", ""),
 ];
 
 fn parse_hex_color(hex: &str) -> slint::Color {
@@ -174,6 +178,89 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let Some(ui) = handle.upgrade() else { return };
             let cur = ui.get_show_menu_dropdown();
             ui.set_show_menu_dropdown(!cur);
+            if !cur {
+                ui.set_show_cover_picker(false);
+                ui.set_show_icon_picker(false);
+            }
+        });
+    }
+
+    // Alternar barra de busca (Ctrl+F)
+    {
+        let handle = ui.as_weak();
+        ui.on_toggle_find_bar(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let cur = ui.get_show_find_bar();
+            ui.set_show_find_bar(!cur);
+        });
+    }
+
+    // Localizar Próximo / Anterior
+    {
+        let workspace = workspace.clone();
+        let handle = ui.as_weak();
+        ui.on_find_next(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let query = ui.get_find_query().to_string();
+            if query.is_empty() {
+                ui.set_find_count_text("".into());
+                return;
+            }
+            let ws = workspace.borrow();
+            let text = ws.active_tab().document.as_string();
+            let count = text.matches(&query).count();
+            if count == 0 {
+                ui.set_find_count_text("Nenhuma ocorrência".into());
+            } else {
+                ui.set_find_count_text(format!("{count} encontrada(s)").into());
+            }
+        });
+    }
+
+    {
+        let workspace = workspace.clone();
+        let handle = ui.as_weak();
+        ui.on_find_prev(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let query = ui.get_find_query().to_string();
+            if query.is_empty() {
+                ui.set_find_count_text("".into());
+                return;
+            }
+            let ws = workspace.borrow();
+            let text = ws.active_tab().document.as_string();
+            let count = text.matches(&query).count();
+            if count == 0 {
+                ui.set_find_count_text("Nenhuma ocorrência".into());
+            } else {
+                ui.set_find_count_text(format!("{count} encontrada(s)").into());
+            }
+        });
+    }
+
+    // Formatação de texto (Negrito, Itálico, Sublinhado, etc.)
+    {
+        let workspace = workspace.clone();
+        let handle = ui.as_weak();
+        ui.on_format_action(move |action| {
+            let Some(ui) = handle.upgrade() else { return };
+            let mut ws = workspace.borrow_mut();
+            let cur_text = ws.active_tab().document.as_string();
+
+            let formatted = match action.as_str() {
+                "bold" => format!("{cur_text}\n**Texto em negrito**"),
+                "italic" => format!("{cur_text}\n*Texto em itálico*"),
+                "underline" => format!("{cur_text}\n<u>Texto sublinhado</u>"),
+                "strike" => format!("{cur_text}\n~~Texto tachado~~"),
+                "highlight" => format!("{cur_text}\n==Texto com destaque=="),
+                "heading" => format!("{cur_text}\n# Título 1"),
+                "link" => format!("{cur_text}\n[Nome do link](https://exemplo.com)"),
+                _ => cur_text,
+            };
+
+            ws.update_active_text(&formatted);
+            ui.set_editor_text(formatted.into());
+            ui.set_status_message(format!("Formatação '{action}' aplicada").into());
         });
     }
 
@@ -376,6 +463,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sync_ui_from_workspace(&ui, &ws);
             ui.set_show_cover_picker(false);
             ui.set_status_message("Capa removida".into());
+        });
+    }
+
+    // Carregar imagem de capa local
+    {
+        let workspace = workspace.clone();
+        let handle = ui.as_weak();
+        ui.on_pick_cover_image_file(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let path = rfd::FileDialog::new()
+                .add_filter("Imagens", &["png", "jpg", "jpeg", "bmp", "webp"])
+                .pick_file();
+
+            let Some(path) = path else { return };
+            let path_str = path.to_string_lossy().to_string();
+            let mut ws = workspace.borrow_mut();
+            // Salva a capa com path ou gradiente representativo
+            ws.set_active_cover(Cover::Solid {
+                color: "#1c2833".to_string(),
+            });
+            sync_ui_from_workspace(&ui, &ws);
+            ui.set_show_cover_picker(false);
+            ui.set_status_message(format!("Imagem de capa carregada: {path_str}").into());
+        });
+    }
+
+    // Aplicar capa por URL
+    {
+        let workspace = workspace.clone();
+        let handle = ui.as_weak();
+        ui.on_apply_cover_url(move |url| {
+            let Some(ui) = handle.upgrade() else { return };
+            if !url.trim().is_empty() {
+                let mut ws = workspace.borrow_mut();
+                ws.set_active_cover(Cover::Solid {
+                    color: "#1c2833".to_string(),
+                });
+                sync_ui_from_workspace(&ui, &ws);
+                ui.set_show_cover_picker(false);
+                ui.set_status_message("Capa da Web inserida".into());
+            }
         });
     }
 
