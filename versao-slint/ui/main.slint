@@ -1,0 +1,1089 @@
+import { ScrollView } from "std-widgets.slint";
+
+export struct TabItem {
+    id: int,
+    title: string,
+    icon: string,
+    is_dirty: bool,
+    is_active: bool,
+}
+
+component CoverCard inherits Rectangle {
+    in property <string> title;
+    in property <bool> is-gradient;
+    in property <color> c1;
+    in property <color> c2;
+    callback clicked <=> touch.clicked;
+
+    width: 102px;
+    height: 64px;
+    border-radius: 6px;
+    background: #1c1c1c;
+    border-width: 1px;
+    border-color: touch.has-hover ? #585858 : #2a2a2a;
+    clip: true;
+
+    touch := TouchArea {}
+
+    VerticalLayout {
+        spacing: 0px;
+        Rectangle {
+            height: 42px;
+            if root.is-gradient: Rectangle {
+                background: @linear-gradient(90deg, root.c1 0%, root.c2 100%);
+            }
+            if !root.is-gradient: Rectangle {
+                background: root.c1;
+            }
+        }
+        Rectangle {
+            height: 22px;
+            background: #242424;
+            HorizontalLayout {
+                padding-left: 6px;
+                padding-right: 6px;
+                Text {
+                    text: root.title;
+                    font-size: 10px;
+                    color: #d0d0d0;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "NotionPad";
+    no-frame: true;
+    preferred-width: 1100px;
+    preferred-height: 750px;
+    min-width: 600px;
+    min-height: 450px;
+    background: #191919;
+
+    in-out property <[TabItem]> tabs: [
+        { id: 1, title: "Titulo", icon: "😍", is_dirty: false, is_active: true }
+    ];
+    in-out property <int> active-tab-index: 0;
+
+    // Document state
+    in-out property <string> document-title: "Titulo";
+    in-out property <string> document-icon: "😍";
+    in-out property <string> editor-text: "";
+    in-out property <bool> has-cover: true;
+    in-out property <bool> cover-is-gradient: true;
+    in-out property <color> cover-color-1: #FF416C;
+    in-out property <color> cover-color-2: #FF4B2B;
+
+    // Modals & Popups visibility
+    in-out property <bool> show-cover-picker: false;
+    in-out property <int> cover-picker-tab: 0; // 0: Galeria, 1: Carregar, 2: Link
+    in-out property <string> cover-url-input: "";
+    in-out property <bool> show-icon-picker: false;
+    in-out property <string> emoji-search-query: "";
+    in-out property <bool> show-menu-dropdown: false;
+    in-out property <bool> show-find-bar: false;
+    in-out property <string> find-query: "";
+    in-out property <string> find-count-text: "";
+    in-out property <bool> show-block-popup: false;
+
+    // Status bar state
+    in-out property <string> status-message: "Pronto";
+    in-out property <string> status-line-col: "Ln 1, Col 1";
+    in-out property <string> status-chars: "0 caracteres";
+    in-out property <string> encoding-text: "UTF-8";
+    in-out property <string> line-ending-text: "Windows (CRLF)";
+    in-out property <string> language-text: "Texto";
+
+    // Callbacks to Rust
+    callback document-edited(string);
+    callback title-edited(string);
+    callback request-new();
+    callback request-open();
+    callback request-save();
+    callback request-save-as();
+    callback select-tab(int);
+    callback close-tab(int);
+    callback new-tab();
+    callback apply-cover-preset(int);
+    callback remove-cover();
+    callback pick-cover-image-file();
+    callback apply-cover-url(string);
+    callback apply-icon(string);
+    callback remove-icon();
+    callback toggle-cover-picker();
+    callback toggle-icon-picker();
+    callback toggle-menu();
+    callback toggle-find-bar();
+    callback find-next();
+    callback find-prev();
+    callback format-action(string);
+    callback window-drag();
+    callback window-minimize();
+    callback window-toggle-maximize();
+    callback window-close();
+    callback toggle-formatting-bar();
+    in-out property <bool> show-formatting-bar: false;
+
+    // ROOT OVERLAY CONTAINER
+    Rectangle {
+        width: 100%;
+        height: 100%;
+
+        // ==================== BASE APPLICATION LAYOUT ====================
+        VerticalLayout {
+            spacing: 0px;
+
+            // 1. WINDOW TITLE BAR WITH INTEGRATED TABS & CAPTION BUTTONS
+            Rectangle {
+                height: 38px;
+                background: #1f1f1f;
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 0px;
+                    spacing: 6px;
+                    alignment: stretch;
+
+                    // App Menu Button (Blue Notion square)
+                    Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 4px;
+                        background: menu_touch.has-hover ? #2e2e2e : transparent;
+                        y: (parent.height - self.height) / 2;
+
+                        Rectangle {
+                            width: 15px;
+                            height: 15px;
+                            border-radius: 3px;
+                            background: #2383e2;
+                            horizontal-stretch: 0;
+                            vertical-stretch: 0;
+                        }
+
+                        menu_touch := TouchArea {
+                            clicked => { root.toggle-menu(); }
+                        }
+                    }
+
+                    // Tabs List
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+
+                        for tab[idx] in root.tabs: Rectangle {
+                            background: tab.is-active ? #262626 : (tab_touch.has-hover ? #232323 : transparent);
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: tab.is-active ? #383838 : transparent;
+                            height: 28px;
+                            y: (parent.height - self.height) / 2;
+
+                            tab_touch := TouchArea {
+                                clicked => { root.select-tab(idx); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 6px;
+                                spacing: 5px;
+                                alignment: center;
+
+                                if tab.is-dirty: Text {
+                                    text: "•";
+                                    color: #f0f0f0;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+
+                                if tab.icon != "": Text {
+                                    text: tab.icon;
+                                    font-size: 13px;
+                                    vertical-alignment: center;
+                                }
+
+                                Text {
+                                    text: tab.title != "" ? tab.title : "Sem título";
+                                    color: tab.is-active ? #ffffff : #969696;
+                                    font-size: 12px;
+                                    font-weight: tab.is-active ? 500 : 400;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                    max-width: 140px;
+                                }
+
+                                Rectangle {
+                                    width: 16px;
+                                    height: 16px;
+                                    border-radius: 3px;
+                                    background: close_touch.has-hover ? #3c3c3c : transparent;
+
+                                    Text {
+                                        text: "×";
+                                        font-size: 13px;
+                                        color: close_touch.has-hover ? #ffffff : #787878;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+
+                                    close_touch := TouchArea {
+                                        clicked => { root.close-tab(idx); }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Plus button (+) to add new tab
+                        Rectangle {
+                            width: 26px;
+                            height: 26px;
+                            border-radius: 4px;
+                            background: add_touch.has-hover ? #2e2e2e : transparent;
+                            y: (parent.height - self.height) / 2;
+
+                            Text {
+                                text: "+";
+                                font-size: 15px;
+                                color: add_touch.has-hover ? #ffffff : #8a8a8a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            add_touch := TouchArea {
+                                clicked => { root.new-tab(); }
+                            }
+                        }
+                    }
+
+                    // Draggable Window Area
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 100%;
+
+                        drag_area := TouchArea {
+                            pointer-event(event) => {
+                                if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                    root.window-drag();
+                                }
+                            }
+                        }
+                    }
+
+                    // Window Caption Buttons (—, ⬜, ✕)
+                    HorizontalLayout {
+                        spacing: 0px;
+                        alignment: end;
+
+                        // Minimize
+                        Rectangle {
+                            width: 46px;
+                            height: 38px;
+                            background: min_touch.has-hover ? #2e2e2e : transparent;
+
+                            Text {
+                                text: "—";
+                                font-size: 10px;
+                                color: min_touch.has-hover ? #ffffff : #9a9a9a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            min_touch := TouchArea {
+                                clicked => { root.window-minimize(); }
+                            }
+                        }
+
+                        // Maximize / Restore
+                        Rectangle {
+                            width: 46px;
+                            height: 38px;
+                            background: max_touch.has-hover ? #2e2e2e : transparent;
+
+                            Text {
+                                text: "⬜";
+                                font-size: 10px;
+                                color: max_touch.has-hover ? #ffffff : #9a9a9a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            max_touch := TouchArea {
+                                clicked => { root.window-toggle-maximize(); }
+                            }
+                        }
+
+                        // Close
+                        Rectangle {
+                            width: 46px;
+                            height: 38px;
+                            background: cls_touch.has-hover ? #e81123 : transparent;
+
+                            Text {
+                                text: "✕";
+                                font-size: 12px;
+                                color: cls_touch.has-hover ? #ffffff : #9a9a9a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            cls_touch := TouchArea {
+                                clicked => { root.window-close(); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. FIND & REPLACE BAR (Ctrl+F)
+            if root.show-find-bar: Rectangle {
+                height: 38px;
+                background: #252525;
+                border-width: 1px;
+                border-color: #333333;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 8px;
+                    alignment: start;
+
+                    Text { text: "Localizar:"; font-size: 12px; color: #d0d0d0; vertical-alignment: center; }
+
+                    Rectangle {
+                        width: 200px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: #1c1c1c;
+                        border-width: 1px;
+                        border-color: #383838;
+                        y: (parent.height - self.height) / 2;
+
+                        HorizontalLayout {
+                            padding-left: 6px; padding-right: 6px;
+                            TextInput {
+                                text <=> root.find-query;
+                                color: #ffffff;
+                                font-size: 12px;
+                                single-line: true;
+                                vertical-alignment: center;
+                                accepted => { root.find-next(); }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 24px; height: 24px; border-radius: 3px;
+                        background: prv_touch.has-hover ? #333333 : transparent;
+                        y: (parent.height - self.height) / 2;
+                        Text { text: "∧"; font-size: 12px; color: #e0e0e0; horizontal-alignment: center; vertical-alignment: center; }
+                        prv_touch := TouchArea { clicked => { root.find-prev(); } }
+                    }
+
+                    Rectangle {
+                        width: 24px; height: 24px; border-radius: 3px;
+                        background: nxt_touch.has-hover ? #333333 : transparent;
+                        y: (parent.height - self.height) / 2;
+                        Text { text: "∨"; font-size: 12px; color: #e0e0e0; horizontal-alignment: center; vertical-alignment: center; }
+                        nxt_touch := TouchArea { clicked => { root.find-next(); } }
+                    }
+
+                    Text { text: root.find-count-text; font-size: 11px; color: #888888; vertical-alignment: center; }
+
+                    Rectangle { horizontal-stretch: 1; }
+
+                    Rectangle {
+                        width: 24px; height: 24px; border-radius: 3px;
+                        background: cf_touch.has-hover ? #333333 : transparent;
+                        y: (parent.height - self.height) / 2;
+                        Text { text: "✕"; font-size: 12px; color: #888888; horizontal-alignment: center; vertical-alignment: center; }
+                        cf_touch := TouchArea { clicked => { root.toggle-find-bar(); } }
+                    }
+                }
+            }
+
+            // 3. MAIN DOCUMENT CANVAS
+            Flickable {
+                vertical-stretch: 1;
+                content-height: 1200px;
+
+                VerticalLayout {
+                    spacing: 0px;
+
+                    // FULL-WIDTH COVER BANNER (220px)
+                    if root.has-cover: Rectangle {
+                        height: 220px;
+                        clip: true;
+
+                        if root.cover-is-gradient: Rectangle {
+                            background: @linear-gradient(90deg, root.cover-color-1 0%, root.cover-color-2 100%);
+                        }
+                        if !root.cover-is-gradient: Rectangle {
+                            background: root.cover-color-1;
+                        }
+
+                        // Hover controls on the cover (frosted pill in top right corner)
+                        cover_hover := TouchArea {
+                            width: 100%;
+                            height: 100%;
+
+                            if self.has-hover: Rectangle {
+                                x: parent.width - self.width - 24px;
+                                y: 16px;
+                                height: 32px;
+                                width: 200px;
+                                border-radius: 6px;
+                                background: #141414b0;
+                                border-width: 1px;
+                                border-color: #ffffff20;
+
+                                HorizontalLayout {
+                                    alignment: center;
+                                    spacing: 8px;
+
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: btn_chg_touch.has-hover ? #2e2e2e : transparent;
+                                        height: 24px;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout {
+                                            padding-left: 8px; padding-right: 8px;
+                                            Text { text: "Alterar capa"; font-size: 12px; color: #ffffff; vertical-alignment: center; }
+                                        }
+                                        btn_chg_touch := TouchArea { clicked => { root.toggle-cover-picker(); } }
+                                    }
+
+                                    Rectangle { width: 1px; height: 14px; background: #ffffff30; y: (parent.height - self.height) / 2; }
+
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: btn_rem_touch.has-hover ? #2e2e2e : transparent;
+                                        height: 24px;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout {
+                                            padding-left: 8px; padding-right: 8px;
+                                            Text { text: "Remover"; font-size: 12px; color: #ffffff; vertical-alignment: center; }
+                                        }
+                                        btn_rem_touch := TouchArea { clicked => { root.remove-cover(); } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // CENTERED NOTION PAGE CONTAINER (MaxWidth 860px)
+                    HorizontalLayout {
+                        alignment: center;
+
+                        VerticalLayout {
+                            width: 860px;
+                            spacing: 0px;
+
+                            // Emoji Badge (half overlapping cover, half in body)
+                            Rectangle {
+                                height: root.has-cover ? 44px : (root.document-icon != "" ? 76px : 32px);
+
+                                if root.document-icon != "": Rectangle {
+                                    x: 0px;
+                                    y: root.has-cover ? -38px : 4px;
+                                    width: 76px;
+                                    height: 76px;
+                                    border-radius: 38px;
+                                    background: #191919;
+                                    border-width: 3px;
+                                    border-color: #191919;
+
+                                    emoji_touch := TouchArea {
+                                        clicked => { root.toggle-icon-picker(); }
+                                    }
+
+                                    Text {
+                                        text: root.document-icon;
+                                        font-size: 44px;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                // If no cover or no icon: subtle hover action line
+                                header_hover := TouchArea {
+                                    width: 300px;
+                                    height: 32px;
+                                    x: 0px;
+                                    y: 4px;
+
+                                    if self.has-hover: HorizontalLayout {
+                                        spacing: 12px;
+
+                                        if root.document-icon == "": Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: #252525;
+                                            HorizontalLayout {
+                                                padding-left: 8px; padding-right: 8px;
+                                                Text { text: "🙂 Adicionar ícone"; font-size: 12px; color: #909090; vertical-alignment: center; }
+                                            }
+                                            TouchArea { clicked => { root.toggle-icon-picker(); } }
+                                        }
+
+                                        if !root.has-cover: Rectangle {
+                                            height: 24px;
+                                            border-radius: 4px;
+                                            background: #252525;
+                                            HorizontalLayout {
+                                                padding-left: 8px; padding-right: 8px;
+                                                Text { text: "🖼️ Adicionar capa"; font-size: 12px; color: #909090; vertical-alignment: center; }
+                                            }
+                                            TouchArea { clicked => { root.toggle-cover-picker(); } }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // PAGE TITLE
+                            Rectangle {
+                                height: 54px;
+
+                                if root.document-title == "": Text {
+                                    x: 0px;
+                                    y: 0px;
+                                    text: "Nova página";
+                                    font-size: 36px;
+                                    font-weight: 700;
+                                    color: #4b4b4b;
+                                    vertical-alignment: center;
+                                }
+
+                                title_input := TextInput {
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 100%;
+                                    height: 100%;
+                                    text <=> root.document-title;
+                                    font-size: 36px;
+                                    font-weight: 700;
+                                    color: #ffffff;
+                                    single-line: true;
+                                    vertical-alignment: center;
+                                    edited => { root.title-edited(self.text); }
+                                    accepted => { editor_input.focus(); }
+                                }
+                            }
+
+                            Rectangle { height: 14px; }
+
+                            // FLOATING FORMATTING BAR (Interactive Notion Pill - shown on request / selection)
+                            if root.show-formatting-bar: Rectangle {
+                                height: 34px;
+                                width: 330px;
+                                border-radius: 7px;
+                                background: #242424f0;
+                                border-width: 1px;
+                                border-color: #383838;
+
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    spacing: 4px;
+                                    alignment: center;
+
+                                    Rectangle {
+                                        height: 26px; border-radius: 4px;
+                                        background: blk_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        HorizontalLayout {
+                                            padding-left: 6px; padding-right: 6px;
+                                            Text { text: "T Texto normal ▾"; font-size: 12px; color: #d0d0d0; vertical-alignment: center; }
+                                        }
+                                        blk_touch := TouchArea { clicked => { root.format-action("heading"); } }
+                                    }
+
+                                    Rectangle { width: 1px; height: 14px; background: #383838; y: (parent.height - self.height) / 2; }
+
+                                    Rectangle {
+                                        width: 24px; height: 24px; border-radius: 3px;
+                                        background: b_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        Text { text: "B"; font-size: 12px; font-weight: 700; color: #f0f0f0; horizontal-alignment: center; vertical-alignment: center; }
+                                        b_touch := TouchArea { clicked => { root.format-action("bold"); } }
+                                    }
+
+                                    Rectangle {
+                                        width: 24px; height: 24px; border-radius: 3px;
+                                        background: i_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        Text { text: "I"; font-size: 12px; font-italic: true; color: #f0f0f0; horizontal-alignment: center; vertical-alignment: center; }
+                                        i_touch := TouchArea { clicked => { root.format-action("italic"); } }
+                                    }
+
+                                    Rectangle {
+                                        width: 24px; height: 24px; border-radius: 3px;
+                                        background: u_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        Text { text: "U"; font-size: 12px; color: #f0f0f0; horizontal-alignment: center; vertical-alignment: center; }
+                                        u_touch := TouchArea { clicked => { root.format-action("underline"); } }
+                                    }
+
+                                    Rectangle {
+                                        width: 24px; height: 24px; border-radius: 3px;
+                                        background: s_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        Text { text: "S"; font-size: 12px; color: #f0f0f0; horizontal-alignment: center; vertical-alignment: center; }
+                                        s_touch := TouchArea { clicked => { root.format-action("strike"); } }
+                                    }
+
+                                    Rectangle {
+                                        width: 24px; height: 24px; border-radius: 3px;
+                                        background: a_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        Text { text: "A"; font-size: 12px; font-weight: 700; color: #f59e0b; horizontal-alignment: center; vertical-alignment: center; }
+                                        a_touch := TouchArea { clicked => { root.format-action("highlight"); } }
+                                    }
+
+                                    Rectangle { width: 1px; height: 14px; background: #383838; y: (parent.height - self.height) / 2; }
+
+                                    Rectangle {
+                                        width: 24px; height: 24px; border-radius: 3px;
+                                        background: lk_touch.has-hover ? #333333 : transparent;
+                                        y: (parent.height - self.height) / 2;
+                                        Text { text: "🔗"; font-size: 12px; color: #529cfd; horizontal-alignment: center; vertical-alignment: center; }
+                                        lk_touch := TouchArea { clicked => { root.format-action("link"); } }
+                                    }
+                                }
+                            }
+
+                            if root.show-formatting-bar: Rectangle { height: 16px; }
+
+                            // PAGE BODY EDITOR (Seamless canvas, no borders, no gray container)
+                            Rectangle {
+                                min-height: 450px;
+
+                                TouchArea {
+                                    clicked => { editor_input.focus(); }
+                                }
+
+                                if root.editor-text == "": Text {
+                                    x: 0px;
+                                    y: 4px;
+                                    text: "Clique na barra de espaço para ativar a IA ou \"/\" para acessar os comandos";
+                                    font-size: 15px;
+                                    color: #4b4b4b;
+                                }
+
+                                editor_input := TextInput {
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 100%;
+                                    min-height: 450px;
+                                    text <=> root.editor-text;
+                                    color: #f0f0f0;
+                                    font-size: 15px;
+                                    wrap: word-wrap;
+                                    single-line: false;
+                                    edited => { root.document-edited(self.text); }
+                                }
+                            }
+
+                            Rectangle { height: 120px; }
+                        }
+                    }
+                }
+            }
+
+            // 4. MINIMALIST NOTIONPAD STATUS BAR
+            Rectangle {
+                height: 24px;
+                background: #1f1f1f;
+                border-width: 1px;
+                border-color: #262626;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 16px;
+                    alignment: stretch;
+
+                    Text {
+                        text: root.status-line-col;
+                        color: #707070;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.status-chars;
+                        color: #707070;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.status-message;
+                        color: #555555;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle { horizontal-stretch: 1; }
+
+                    Text {
+                        text: root.language-text + " ▾";
+                        color: #888888;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "100%";
+                        color: #707070;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.line-ending-text;
+                        color: #707070;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.encoding-text;
+                        color: #707070;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // ==================== BACKDROP OVERLAY TO DISMISS POPUPS ====================
+        if root.show-cover-picker || root.show-icon-picker || root.show-menu-dropdown: TouchArea {
+            x: 0px;
+            y: 38px;
+            width: 100%;
+            height: parent.height - 38px;
+            clicked => {
+                root.show-cover-picker = false;
+                root.show-icon-picker = false;
+                root.show-menu-dropdown = false;
+            }
+        }
+
+        // ==================== FLOATING COVER PICKER CARD ====================
+        if root.show-cover-picker: Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 60px;
+            width: 470px;
+            height: 330px;
+            background: #202020;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #383838;
+
+            VerticalLayout {
+                padding: 14px;
+                spacing: 12px;
+
+                // Header with Tabs (Galeria | Carregar | Link) + Remover
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 4px;
+                        background: root.cover-picker-tab == 0 ? #2d2d2d : transparent;
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px;
+                            Text { text: "Galeria"; font-size: 12px; font-weight: root.cover-picker-tab == 0 ? 600 : 400; color: root.cover-picker-tab == 0 ? #ffffff : #909090; vertical-alignment: center; }
+                        }
+                        TouchArea { clicked => { root.cover-picker-tab = 0; } }
+                    }
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 4px;
+                        background: root.cover-picker-tab == 1 ? #2d2d2d : transparent;
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px;
+                            Text { text: "Carregar"; font-size: 12px; font-weight: root.cover-picker-tab == 1 ? 600 : 400; color: root.cover-picker-tab == 1 ? #ffffff : #909090; vertical-alignment: center; }
+                        }
+                        TouchArea { clicked => { root.cover-picker-tab = 1; } }
+                    }
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 4px;
+                        background: root.cover-picker-tab == 2 ? #2d2d2d : transparent;
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px;
+                            Text { text: "Link"; font-size: 12px; font-weight: root.cover-picker-tab == 2 ? 600 : 400; color: root.cover-picker-tab == 2 ? #ffffff : #909090; vertical-alignment: center; }
+                        }
+                        TouchArea { clicked => { root.cover-picker-tab = 2; } }
+                    }
+
+                    Rectangle { horizontal-stretch: 1; }
+
+                    Rectangle {
+                        height: 28px; border-radius: 4px;
+                        background: rem_cov_touch.has-hover ? #2e2e2e : transparent;
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px;
+                            Text { text: "Remover"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; }
+                        }
+                        rem_cov_touch := TouchArea { clicked => { root.remove-cover(); } }
+                    }
+
+                    Rectangle {
+                        width: 28px; height: 28px; border-radius: 4px;
+                        background: cl_cov_touch.has-hover ? #2e2e2e : transparent;
+                        Text { text: "✕"; font-size: 12px; color: #888888; horizontal-alignment: center; vertical-alignment: center; }
+                        cl_cov_touch := TouchArea { clicked => { root.toggle-cover-picker(); } }
+                    }
+                }
+
+                // 1. Galeria Grid
+                if root.cover-picker-tab == 0: VerticalLayout {
+                    spacing: 8px;
+                    Text { text: "Cor e Gradiente"; font-size: 11px; color: #808080; }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        CoverCard { title: "Pôr do Sol"; is-gradient: true; c1: #FF416C; c2: #FF4B2B; clicked => { root.apply-cover-preset(0); } }
+                        CoverCard { title: "Aurora"; is-gradient: true; c1: #0F2027; c2: #2C5364; clicked => { root.apply-cover-preset(1); } }
+                        CoverCard { title: "Cyberpunk"; is-gradient: true; c1: #2E0854; c2: #D62976; clicked => { root.apply-cover-preset(2); } }
+                        CoverCard { title: "Esmeralda"; is-gradient: true; c1: #051923; c2: #00A896; clicked => { root.apply-cover-preset(3); } }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        CoverCard { title: "Brasa"; is-gradient: true; c1: #1A1A1A; c2: #C84B31; clicked => { root.apply-cover-preset(4); } }
+                        CoverCard { title: "Noite"; is-gradient: true; c1: #09122C; c2: #2C3E50; clicked => { root.apply-cover-preset(5); } }
+                        CoverCard { title: "Oceano"; is-gradient: false; c1: #142850; c2: #142850; clicked => { root.apply-cover-preset(6); } }
+                        CoverCard { title: "Púrpura"; is-gradient: false; c1: #2A163E; c2: #2A163E; clicked => { root.apply-cover-preset(7); } }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        CoverCard { title: "Ardósia"; is-gradient: false; c1: #20272F; c2: #20272F; clicked => { root.apply-cover-preset(8); } }
+                        CoverCard { title: "Vinho"; is-gradient: false; c1: #3A1010; c2: #3A1010; clicked => { root.apply-cover-preset(9); } }
+                        CoverCard { title: "Floresta"; is-gradient: false; c1: #143020; c2: #143020; clicked => { root.apply-cover-preset(10); } }
+                        CoverCard { title: "Âmbar"; is-gradient: false; c1: #3E2A10; c2: #3E2A10; clicked => { root.apply-cover-preset(11); } }
+                    }
+                }
+
+                // 2. Carregar Imagem
+                if root.cover-picker-tab == 1: VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+                    Text { text: "📁"; font-size: 32px; horizontal-alignment: center; }
+                    Rectangle {
+                        width: 240px; height: 36px; border-radius: 6px; background: #2383e2;
+                        HorizontalLayout { alignment: center; Text { text: "Carregar imagem do computador"; color: #ffffff; font-size: 13px; font-weight: 500; vertical-alignment: center; } }
+                        TouchArea { clicked => { root.pick-cover-image-file(); } }
+                    }
+                    Text { text: "Tamanho recomendado: 1500 x 600 pixels (PNG, JPG, BMP)"; font-size: 11px; color: #808080; horizontal-alignment: center; }
+                }
+
+                // 3. Inserir Link URL
+                if root.cover-picker-tab == 2: VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+                    Text { text: "Cole a URL da imagem da web:"; font-size: 12px; color: #909090; }
+                    Rectangle {
+                        height: 32px; border-radius: 6px; background: #181818; border-width: 1px; border-color: #383838;
+                        HorizontalLayout { padding-left: 8px; padding-right: 8px; TextInput { text <=> root.cover-url-input; color: #ffffff; font-size: 12px; single-line: true; } }
+                    }
+                    Rectangle {
+                        width: 140px; height: 32px; border-radius: 6px; background: #2383e2;
+                        HorizontalLayout { alignment: center; Text { text: "Inserir imagem"; color: #ffffff; font-size: 12px; font-weight: 500; vertical-alignment: center; } }
+                        TouchArea { clicked => { root.apply-cover-url(root.cover-url-input); } }
+                    }
+                }
+            }
+        }
+
+        // ==================== FLOATING EMOJI PICKER CARD ====================
+        if root.show-icon-picker: Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 80px;
+            width: 360px;
+            height: 340px;
+            background: #202020;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #383838;
+
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    Text { text: "Emoji"; font-size: 13px; font-weight: 600; color: #ffffff; vertical-alignment: center; }
+                    Rectangle { horizontal-stretch: 1; }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: rem_em_touch.has-hover ? #2e2e2e : transparent;
+                        HorizontalLayout {
+                            padding-left: 8px; padding-right: 8px;
+                            Text { text: "Remover"; font-size: 12px; color: #a0a0a0; vertical-alignment: center; }
+                        }
+                        rem_em_touch := TouchArea { clicked => { root.remove-icon(); } }
+                    }
+                    Rectangle {
+                        width: 24px; height: 24px; border-radius: 4px;
+                        background: cl_em_touch.has-hover ? #2e2e2e : transparent;
+                        Text { text: "✕"; font-size: 12px; color: #888888; horizontal-alignment: center; vertical-alignment: center; }
+                        cl_em_touch := TouchArea { clicked => { root.toggle-icon-picker(); } }
+                    }
+                }
+
+                // Search Box
+                Rectangle {
+                    height: 32px;
+                    border-radius: 6px;
+                    background: #181818;
+                    border-width: 1px;
+                    border-color: #2383e2;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 6px;
+
+                        Text { text: "🔍"; font-size: 11px; vertical-alignment: center; color: #888888; }
+                        TextInput {
+                            text <=> root.emoji-search-query;
+                            color: #ffffff;
+                            font-size: 12px;
+                            single-line: true;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Emoji Palette (6 columns)
+                ScrollView {
+                    height: 230px;
+
+                    VerticalLayout {
+                        spacing: 4px;
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            for em in ["😍", "💻", "📝", "📓", "💡", "🚀"]: Rectangle {
+                                width: 50px; height: 38px; border-radius: 4px;
+                                background: e_t1.has-hover ? #323232 : transparent;
+                                Text { text: em; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; }
+                                e_t1 := TouchArea { clicked => { root.apply-icon(em); } }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            for em in ["🦀", "🎯", "⚡", "📚", "🛠️", "🎨"]: Rectangle {
+                                width: 50px; height: 38px; border-radius: 4px;
+                                background: e_t2.has-hover ? #323232 : transparent;
+                                Text { text: em; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; }
+                                e_t2 := TouchArea { clicked => { root.apply-icon(em); } }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            for em in ["🌐", "☕", "🔍", "📌", "⭐", "🧠"]: Rectangle {
+                                width: 50px; height: 38px; border-radius: 4px;
+                                background: e_t3.has-hover ? #323232 : transparent;
+                                Text { text: em; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; }
+                                e_t3 := TouchArea { clicked => { root.apply-icon(em); } }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            for em in ["🏷️", "📂", "🔔", "🔑", "📊", "🧪"]: Rectangle {
+                                width: 50px; height: 38px; border-radius: 4px;
+                                background: e_t4.has-hover ? #323232 : transparent;
+                                Text { text: em; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; }
+                                e_t4 := TouchArea { clicked => { root.apply-icon(em); } }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 4px;
+                            for em in ["🛡️", "🔥", "💎", "✨", "🎉", "❤️"]: Rectangle {
+                                width: 50px; height: 38px; border-radius: 4px;
+                                background: e_t5.has-hover ? #323232 : transparent;
+                                Text { text: em; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; }
+                                e_t5 := TouchArea { clicked => { root.apply-icon(em); } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==================== DROPDOWN APP MENU ====================
+        if root.show-menu-dropdown: Rectangle {
+            x: 8px;
+            y: 38px;
+            width: 220px;
+            background: #252525;
+            border-radius: 6px;
+            border-width: 1px;
+            border-color: #383838;
+
+            VerticalLayout {
+                padding: 6px;
+                spacing: 2px;
+
+                Rectangle {
+                    height: 28px; border-radius: 4px;
+                    background: mn1.has-hover ? #333333 : transparent;
+                    HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "Nova Guia (Ctrl+T)"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; } }
+                    mn1 := TouchArea { clicked => { root.new-tab(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    height: 28px; border-radius: 4px;
+                    background: mn2.has-hover ? #333333 : transparent;
+                    HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "Abrir... (Ctrl+O)"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; } }
+                    mn2 := TouchArea { clicked => { root.request-open(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    height: 28px; border-radius: 4px;
+                    background: mn3.has-hover ? #333333 : transparent;
+                    HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "Salvar (Ctrl+S)"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; } }
+                    mn3 := TouchArea { clicked => { root.request-save(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    height: 28px; border-radius: 4px;
+                    background: mn4.has-hover ? #333333 : transparent;
+                    HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "Salvar como... (Ctrl+Shift+S)"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; } }
+                    mn4 := TouchArea { clicked => { root.request-save-as(); root.toggle-menu(); } }
+                }
+
+                Rectangle { height: 1px; background: #383838; }
+
+                Rectangle {
+                    height: 28px; border-radius: 4px;
+                    background: mn5.has-hover ? #333333 : transparent;
+                    HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "Localizar (Ctrl+F)"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; } }
+                    mn5 := TouchArea { clicked => { root.toggle-find-bar(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    height: 28px; border-radius: 4px;
+                    background: mn6.has-hover ? #333333 : transparent;
+                    HorizontalLayout { padding-left: 8px; padding-right: 8px; Text { text: "Fechar Guia (Ctrl+W)"; font-size: 12px; color: #e0e0e0; vertical-alignment: center; } }
+                    mn6 := TouchArea { clicked => { root.close-tab(root.active-tab-index); root.toggle-menu(); } }
+                }
+            }
+        }
+    }
+}

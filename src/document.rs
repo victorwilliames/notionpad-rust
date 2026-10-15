@@ -25,6 +25,10 @@ impl Document {
         }
     }
 
+    pub fn set_text(&mut self, text: &str) {
+        self.text = Rope::from_str(text);
+    }
+
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         let file = BufReader::new(File::open(path)?);
         Ok(Self {

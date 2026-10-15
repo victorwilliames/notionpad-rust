@@ -1,0 +1,10 @@
+[package]
+name = "versao-iced"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "NotionPad: Versão Iced (COSMIC Desktop engine)"
+
+[dependencies]
+notionpad-core = { path = "../notionpad-core" }
+iced = { version = "0.14.0", features = ["advanced"] }

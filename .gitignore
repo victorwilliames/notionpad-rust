@@ -1,4 +1,5 @@
-/target
+target/
+**/target/
 **/*.rs.bk
 .DS_Store
 .idea/
@@ -6,3 +7,4 @@
 *.swp
 *.tmp
 *.exe
+

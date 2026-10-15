@@ -1,0 +1,9 @@
+[package]
+name = "notionpad-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "NotionPad Core: motor de documentos e workspace"
+
+[dependencies]
+ropey = "1.6.1"

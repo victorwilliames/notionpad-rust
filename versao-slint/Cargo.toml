@@ -1,0 +1,16 @@
+[package]
+name = "versao-slint"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "NotionPad: Versão Slint afinada com o visual e UX do Windows 11 / C#"
+
+[dependencies]
+notionpad-core = { path = "../notionpad-core" }
+slint = { version = "=1.18.1", features = ["unstable-winit-030"] }
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+rfd = "=0.17.2"
+
+[build-dependencies]
+slint-build = "=1.18.1"

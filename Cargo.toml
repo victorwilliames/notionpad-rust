@@ -1,3 +1,11 @@
+[workspace]
+members = [
+    ".",
+    "notionpad-core",
+    "versao-slint",
+    "versao-iced",
+]
+
 [package]
 name = "notionpad"
 version = "0.1.0"
