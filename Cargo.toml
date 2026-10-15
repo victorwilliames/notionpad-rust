@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [dependencies]
 ropey = "1.6.1"
-slint = "=1.18.1"
+slint = { version = "=1.18.1", features = ["unstable-winit-030"] }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 rfd = "=0.17.2"

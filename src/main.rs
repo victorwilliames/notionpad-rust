@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use notionpad_core::{Cover, Workspace};
+use slint::winit_030::{WinitWindowAccessor, winit};
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -559,6 +560,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ui.set_show_cover_picker(false);
                 ui.set_show_menu_dropdown(false);
             }
+        });
+    }
+
+    // Window Drag
+    {
+        let handle = ui.as_weak();
+        ui.on_window_drag(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let _ = ui.window().with_winit_window(|winit_window: &winit::window::Window| {
+                let _ = winit_window.drag_window();
+            });
+        });
+    }
+
+    // Window Minimize
+    {
+        let handle = ui.as_weak();
+        ui.on_window_minimize(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            ui.window().set_minimized(true);
+        });
+    }
+
+    // Window Toggle Maximize
+    {
+        let handle = ui.as_weak();
+        ui.on_window_toggle_maximize(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let is_max = ui.window().is_maximized();
+            ui.window().set_maximized(!is_max);
+        });
+    }
+
+    // Window Close
+    {
+        let handle = ui.as_weak();
+        ui.on_window_close(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let _ = ui.window().hide();
+            std::process::exit(0);
+        });
+    }
+
+    // Toggle Formatting Bar
+    {
+        let handle = ui.as_weak();
+        ui.on_toggle_formatting_bar(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let current = ui.get_show_formatting_bar();
+            ui.set_show_formatting_bar(!current);
         });
     }
 

@@ -56,6 +56,7 @@ component CoverCard inherits Rectangle {
 
 export component AppWindow inherits Window {
     title: "NotionPad";
+    no-frame: true;
     preferred-width: 1100px;
     preferred-height: 750px;
     min-width: 600px;
@@ -119,6 +120,12 @@ export component AppWindow inherits Window {
     callback find-next();
     callback find-prev();
     callback format-action(string);
+    callback window-drag();
+    callback window-minimize();
+    callback window-toggle-maximize();
+    callback window-close();
+    callback toggle-formatting-bar();
+    in-out property <bool> show-formatting-bar: false;
 
     // ROOT OVERLAY CONTAINER
     Rectangle {
@@ -129,14 +136,14 @@ export component AppWindow inherits Window {
         VerticalLayout {
             spacing: 0px;
 
-            // 1. WINDOW TITLE BAR WITH INTEGRATED TABS
+            // 1. WINDOW TITLE BAR WITH INTEGRATED TABS & CAPTION BUTTONS
             Rectangle {
                 height: 38px;
                 background: #1f1f1f;
 
                 HorizontalLayout {
                     padding-left: 8px;
-                    padding-right: 8px;
+                    padding-right: 0px;
                     spacing: 6px;
                     alignment: stretch;
 
@@ -166,7 +173,6 @@ export component AppWindow inherits Window {
                     HorizontalLayout {
                         spacing: 4px;
                         alignment: start;
-                        horizontal-stretch: 1;
 
                         for tab[idx] in root.tabs: Rectangle {
                             background: tab.is-active ? #262626 : (tab_touch.has-hover ? #232323 : transparent);
@@ -186,17 +192,17 @@ export component AppWindow inherits Window {
                                 spacing: 5px;
                                 alignment: center;
 
-                                if tab.icon != "": Text {
-                                    text: tab.icon;
-                                    font-size: 13px;
-                                    vertical-alignment: center;
-                                }
-
                                 if tab.is-dirty: Text {
                                     text: "•";
                                     color: #f0f0f0;
                                     font-size: 14px;
                                     font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+
+                                if tab.icon != "": Text {
+                                    text: tab.icon;
+                                    font-size: 13px;
                                     vertical-alignment: center;
                                 }
 
@@ -253,33 +259,80 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Top Action Icons
+                    // Draggable Window Area
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 100%;
+
+                        drag_area := TouchArea {
+                            pointer-event(event) => {
+                                if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                    root.window-drag();
+                                }
+                            }
+                        }
+                    }
+
+                    // Window Caption Buttons (—, ⬜, ✕)
                     HorizontalLayout {
-                        spacing: 4px;
+                        spacing: 0px;
                         alignment: end;
 
+                        // Minimize
                         Rectangle {
-                            width: 26px; height: 26px; border-radius: 4px;
-                            background: f_touch.has-hover ? #2e2e2e : transparent;
-                            y: (parent.height - self.height) / 2;
-                            Text { text: "🔍"; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
-                            f_touch := TouchArea { clicked => { root.toggle-find-bar(); } }
+                            width: 46px;
+                            height: 38px;
+                            background: min_touch.has-hover ? #2e2e2e : transparent;
+
+                            Text {
+                                text: "—";
+                                font-size: 10px;
+                                color: min_touch.has-hover ? #ffffff : #9a9a9a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            min_touch := TouchArea {
+                                clicked => { root.window-minimize(); }
+                            }
                         }
 
+                        // Maximize / Restore
                         Rectangle {
-                            width: 26px; height: 26px; border-radius: 4px;
-                            background: op_touch.has-hover ? #2e2e2e : transparent;
-                            y: (parent.height - self.height) / 2;
-                            Text { text: "📂"; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
-                            op_touch := TouchArea { clicked => { root.request-open(); } }
+                            width: 46px;
+                            height: 38px;
+                            background: max_touch.has-hover ? #2e2e2e : transparent;
+
+                            Text {
+                                text: "⬜";
+                                font-size: 10px;
+                                color: max_touch.has-hover ? #ffffff : #9a9a9a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            max_touch := TouchArea {
+                                clicked => { root.window-toggle-maximize(); }
+                            }
                         }
 
+                        // Close
                         Rectangle {
-                            width: 26px; height: 26px; border-radius: 4px;
-                            background: sv_touch.has-hover ? #2e2e2e : transparent;
-                            y: (parent.height - self.height) / 2;
-                            Text { text: "💾"; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
-                            sv_touch := TouchArea { clicked => { root.request-save(); } }
+                            width: 46px;
+                            height: 38px;
+                            background: cls_touch.has-hover ? #e81123 : transparent;
+
+                            Text {
+                                text: "✕";
+                                font-size: 12px;
+                                color: cls_touch.has-hover ? #ffffff : #9a9a9a;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            cls_touch := TouchArea {
+                                clicked => { root.window-close(); }
+                            }
                         }
                     }
                 }
@@ -504,7 +557,7 @@ export component AppWindow inherits Window {
                                     vertical-alignment: center;
                                 }
 
-                                TextInput {
+                                title_input := TextInput {
                                     x: 0px;
                                     y: 0px;
                                     width: 100%;
@@ -516,13 +569,14 @@ export component AppWindow inherits Window {
                                     single-line: true;
                                     vertical-alignment: center;
                                     edited => { root.title-edited(self.text); }
+                                    accepted => { editor_input.focus(); }
                                 }
                             }
 
                             Rectangle { height: 14px; }
 
-                            // FLOATING FORMATTING BAR (Interactive Notion Pill)
-                            Rectangle {
+                            // FLOATING FORMATTING BAR (Interactive Notion Pill - shown on request / selection)
+                            if root.show-formatting-bar: Rectangle {
                                 height: 34px;
                                 width: 330px;
                                 border-radius: 7px;
@@ -601,11 +655,15 @@ export component AppWindow inherits Window {
                                 }
                             }
 
-                            Rectangle { height: 16px; }
+                            if root.show-formatting-bar: Rectangle { height: 16px; }
 
                             // PAGE BODY EDITOR (Seamless canvas, no borders, no gray container)
                             Rectangle {
                                 min-height: 450px;
+
+                                TouchArea {
+                                    clicked => { editor_input.focus(); }
+                                }
 
                                 if root.editor-text == "": Text {
                                     x: 0px;
@@ -615,7 +673,7 @@ export component AppWindow inherits Window {
                                     color: #4b4b4b;
                                 }
 
-                                TextInput {
+                                editor_input := TextInput {
                                     x: 0px;
                                     y: 0px;
                                     width: 100%;
