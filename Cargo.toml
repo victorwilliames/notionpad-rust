@@ -10,6 +10,7 @@ name = "notionpad_core"
 path = "src/lib.rs"
 
 [dependencies]
+floem = "0.2.0"
 ropey = "1.6.1"
 slint = { version = "=1.18.1", features = ["unstable-winit-030"] }
 
