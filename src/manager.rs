@@ -21,9 +21,12 @@ impl TabState {
             id,
             document: Document::new(),
             path: None,
-            title: "Sem título".to_string(),
-            icon: String::new(),
-            cover: Cover::None,
+            title: "Titulo".to_string(),
+            icon: "😍".to_string(),
+            cover: Cover::Gradient {
+                color1: "#FF416C".to_string(),
+                color2: "#FF4B2B".to_string(),
+            },
             is_dirty: false,
         }
     }
@@ -233,7 +236,7 @@ mod tests {
     fn inicializa_com_uma_aba_padrao() {
         let ws = Workspace::new();
         assert_eq!(ws.tab_count(), 1);
-        assert_eq!(ws.active_tab().title, "Sem título");
+        assert_eq!(ws.active_tab().title, "Titulo");
         assert!(!ws.active_tab().is_dirty);
     }
 
@@ -248,7 +251,7 @@ mod tests {
         assert_eq!(ws.active_tab().title, "Aba 2");
 
         ws.switch_tab(0);
-        assert_eq!(ws.active_tab().title, "Sem título");
+        assert_eq!(ws.active_tab().title, "Titulo");
     }
 
     #[test]
@@ -256,6 +259,6 @@ mod tests {
         let mut ws = Workspace::new();
         ws.close_tab(0);
         assert_eq!(ws.tab_count(), 1);
-        assert_eq!(ws.active_tab().title, "Sem título");
+        assert_eq!(ws.active_tab().title, "Titulo");
     }
 }

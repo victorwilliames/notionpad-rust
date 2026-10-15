@@ -3,14 +3,15 @@
 use notionpad_core::{Cover, Workspace};
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 slint::include_modules!();
 
 const PRESET_COVERS: &[(&str, bool, &str, &str)] = &[
+    ("Sunset", true, "#FF416C", "#FF4B2B"),
     ("Aurora", true, "#0F2027", "#2C5364"),
     ("Cyberpunk", true, "#2E0854", "#D62976"),
-    ("Pôr do Sol", true, "#4A154B", "#E06D53"),
     ("Esmeralda", true, "#051923", "#00A896"),
     ("Brasa", true, "#1A1A1A", "#C84B31"),
     ("Noite", true, "#09122C", "#2C3E50"),
@@ -28,6 +29,28 @@ fn parse_hex_color(hex: &str) -> slint::Color {
             slint::Color::from_rgb_u8(r, g, b)
         }
         _ => slint::Color::from_rgb_u8(30, 30, 30),
+    }
+}
+
+fn detect_language(path: &Option<PathBuf>) -> &'static str {
+    let Some(p) = path else { return "Texto"; };
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    match ext.as_str() {
+        "rs" => "Rust",
+        "html" | "htm" => "HTML",
+        "css" => "CSS",
+        "js" => "JavaScript",
+        "ts" => "TypeScript",
+        "json" => "JSON",
+        "py" => "Python",
+        "cs" => "C#",
+        "sql" => "SQL",
+        "md" | "markdown" => "Markdown",
+        _ => "Texto",
     }
 }
 
@@ -72,9 +95,10 @@ fn sync_ui_from_workspace(ui: &AppWindow, ws: &Workspace) {
     }
 
     let chars = active.document.len_chars();
-    let words = active.document.word_count();
     let lines = active.document.line_count();
-    ui.set_stats_text(format!("{chars} caracteres • {words} palavras • {lines} linhas").into());
+    ui.set_status_line_col(format!("Ln {lines}, Col 1").into());
+    ui.set_status_chars(format!("{chars} caracteres").into());
+    ui.set_language_text(detect_language(&active.path).into());
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -83,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Inicialização da interface
     sync_ui_from_workspace(&ui, &workspace.borrow());
-    ui.set_status_message("NotionPad Rust pronto".into());
+    ui.set_status_message("NotionPad pronto".into());
 
     // Edição do texto do documento
     {
@@ -96,11 +120,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let active = ws.active_tab();
             let chars = active.document.len_chars();
-            let words = active.document.word_count();
             let lines = active.document.line_count();
-            ui.set_stats_text(
-                format!("{chars} caracteres • {words} palavras • {lines} linhas").into(),
-            );
+            ui.set_status_line_col(format!("Ln {lines}, Col 1").into());
+            ui.set_status_chars(format!("{chars} caracteres").into());
             ui.set_status_message("Alterações não salvas".into());
 
             // Atualiza status da aba
@@ -145,6 +167,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    // Alternar menu dropdown
+    {
+        let handle = ui.as_weak();
+        ui.on_toggle_menu(move || {
+            let Some(ui) = handle.upgrade() else { return };
+            let cur = ui.get_show_menu_dropdown();
+            ui.set_show_menu_dropdown(!cur);
+        });
+    }
+
     // Seleção de aba
     {
         let workspace = workspace.clone();
@@ -183,7 +215,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut ws = workspace.borrow_mut();
             ws.new_tab();
             sync_ui_from_workspace(&ui, &ws);
-            ui.set_status_message("Nova nota criada".into());
+            ui.set_status_message("Nova página criada".into());
         };
 
         let new_tab_clone = new_tab_action.clone();
@@ -384,6 +416,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ui.set_show_cover_picker(!current);
             if !current {
                 ui.set_show_icon_picker(false);
+                ui.set_show_menu_dropdown(false);
             }
         });
     }
@@ -396,6 +429,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ui.set_show_icon_picker(!current);
             if !current {
                 ui.set_show_cover_picker(false);
+                ui.set_show_menu_dropdown(false);
             }
         });
     }

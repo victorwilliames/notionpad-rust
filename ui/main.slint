@@ -1,5 +1,3 @@
-import { Button, TextEdit, ScrollView } from "std-widgets.slint";
-
 export struct TabItem {
     id: int,
     title: string,
@@ -9,36 +7,39 @@ export struct TabItem {
 }
 
 export component AppWindow inherits Window {
-    title: "NotionPad Rust";
+    title: "NotionPad";
     preferred-width: 1100px;
-    preferred-height: 760px;
+    preferred-height: 750px;
     min-width: 600px;
     min-height: 450px;
     background: #191919;
 
     in-out property <[TabItem]> tabs: [
-        { id: 1, title: "Sem título", icon: "📝", is_dirty: false, is_active: true }
+        { id: 1, title: "Titulo", icon: "😍", is_dirty: false, is_active: true }
     ];
     in-out property <int> active-tab-index: 0;
 
     // Document state
-    in-out property <string> document-title: "Sem título";
-    in-out property <string> document-icon: "📝";
+    in-out property <string> document-title: "Titulo";
+    in-out property <string> document-icon: "😍";
     in-out property <string> editor-text: "";
-    in-out property <bool> has-cover: false;
-    in-out property <bool> cover-is-gradient: false;
-    in-out property <color> cover-color-1: #0F2027;
-    in-out property <color> cover-color-2: #2C5364;
+    in-out property <bool> has-cover: true;
+    in-out property <bool> cover-is-gradient: true;
+    in-out property <color> cover-color-1: #FF416C;
+    in-out property <color> cover-color-2: #FF4B2B;
 
     // Popups/Pickers visibility
     in-out property <bool> show-cover-picker: false;
     in-out property <bool> show-icon-picker: false;
+    in-out property <bool> show-menu-dropdown: false;
 
     // Status bar state
     in-out property <string> status-message: "Pronto";
-    in-out property <string> stats-text: "0 caracteres • 0 palavras • 1 linhas";
+    in-out property <string> status-line-col: "Ln 1, Col 1";
+    in-out property <string> status-chars: "0 caracteres";
     in-out property <string> encoding-text: "UTF-8";
-    in-out property <string> mode-text: "Documento";
+    in-out property <string> line-ending-text: "Windows (CRLF)";
+    in-out property <string> language-text: "Texto";
 
     // Callbacks to Rust
     callback document-edited(string);
@@ -56,52 +57,66 @@ export component AppWindow inherits Window {
     callback remove-icon();
     callback toggle-cover-picker();
     callback toggle-icon-picker();
+    callback toggle-menu();
 
     VerticalLayout {
         spacing: 0px;
 
-        // TOP BAR: Tabs and App Actions
+        // ==================== 1. WINDOW TITLE BAR WITH INTEGRATED TABS ====================
         Rectangle {
-            height: 44px;
-            background: #202020;
+            height: 38px;
+            background: #1f1f1f;
 
             HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                padding-top: 4px;
-                padding-bottom: 4px;
-                spacing: 8px;
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 6px;
+                alignment: stretch;
 
-                // Brand
-                Text {
-                    text: "✦ NotionPad";
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: #e0e0e0;
-                    vertical-alignment: center;
+                // App Brand / Menu button
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 4px;
+                    background: menu_touch.has-hover ? #2e2e2e : transparent;
+                    y: (parent.height - self.height) / 2;
+
+                    Rectangle {
+                        width: 14px;
+                        height: 14px;
+                        border-radius: 3px;
+                        background: #2383e2;
+                        horizontal-stretch: 0;
+                        vertical-stretch: 0;
+                    }
+
+                    menu_touch := TouchArea {
+                        clicked => { root.toggle-menu(); }
+                    }
                 }
 
-                Rectangle { width: 8px; }
-
-                // Tabs List
+                // Tabs container
                 HorizontalLayout {
                     spacing: 4px;
+                    alignment: start;
+                    horizontal-stretch: 1;
 
                     for tab[idx] in root.tabs: Rectangle {
-                        background: tab.is-active ? #2c2c2c : (tab_touch.has-hover ? #252525 : #1a1a1a);
+                        background: tab.is-active ? #262626 : (tab_touch.has-hover ? #232323 : transparent);
                         border-radius: 6px;
                         border-width: 1px;
-                        border-color: tab.is-active ? #404040 : #242424;
-                        height: 32px;
+                        border-color: tab.is-active ? #383838 : transparent;
+                        height: 28px;
+                        y: (parent.height - self.height) / 2;
 
                         tab_touch := TouchArea {
                             clicked => { root.select-tab(idx); }
                         }
 
                         HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 8px;
-                            spacing: 6px;
+                            padding-left: 8px;
+                            padding-right: 6px;
+                            spacing: 5px;
                             alignment: center;
 
                             if tab.icon != "": Text {
@@ -111,32 +126,33 @@ export component AppWindow inherits Window {
                             }
 
                             if tab.is-dirty: Text {
-                                text: "●";
-                                color: #e5a93b;
-                                font-size: 11px;
+                                text: "•";
+                                color: #f0f0f0;
+                                font-size: 14px;
+                                font-weight: 700;
                                 vertical-alignment: center;
                             }
 
                             Text {
                                 text: tab.title != "" ? tab.title : "Sem título";
-                                color: tab.is-active ? #ffffff : #9a9a9a;
+                                color: tab.is-active ? #ffffff : #969696;
                                 font-size: 12px;
-                                font-weight: tab.is-active ? 600 : 400;
+                                font-weight: tab.is-active ? 500 : 400;
                                 vertical-alignment: center;
                                 overflow: elide;
-                                max-width: 130px;
+                                max-width: 140px;
                             }
 
-                            close_box := Rectangle {
-                                width: 18px;
-                                height: 18px;
-                                border-radius: 4px;
-                                background: close_touch.has-hover ? #444444 : transparent;
+                            Rectangle {
+                                width: 16px;
+                                height: 16px;
+                                border-radius: 3px;
+                                background: close_touch.has-hover ? #3c3c3c : transparent;
 
                                 Text {
                                     text: "×";
-                                    font-size: 14px;
-                                    color: close_touch.has-hover ? #ffffff : #777777;
+                                    font-size: 13px;
+                                    color: close_touch.has-hover ? #ffffff : #787878;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;
                                 }
@@ -148,342 +164,601 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Button New Tab (+)
+                    // Plus button (+) to add new tab
                     Rectangle {
-                        width: 28px;
-                        height: 28px;
-                        border-radius: 6px;
-                        background: add_tab_touch.has-hover ? #333333 : transparent;
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: add_touch.has-hover ? #2e2e2e : transparent;
+                        y: (parent.height - self.height) / 2;
 
                         Text {
                             text: "+";
-                            font-size: 16px;
-                            color: add_tab_touch.has-hover ? #ffffff : #888888;
+                            font-size: 15px;
+                            color: add_touch.has-hover ? #ffffff : #8a8a8a;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
 
-                        add_tab_touch := TouchArea {
+                        add_touch := TouchArea {
                             clicked => { root.new-tab(); }
                         }
                     }
                 }
 
+                // Window Control / Actions indicator
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: end;
+
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: act_new_touch.has-hover ? #2e2e2e : transparent;
+                        y: (parent.height - self.height) / 2;
+                        Text {
+                            text: "📝";
+                            font-size: 12px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        act_new_touch := TouchArea {
+                            clicked => { root.new-tab(); }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: act_open_touch.has-hover ? #2e2e2e : transparent;
+                        y: (parent.height - self.height) / 2;
+                        Text {
+                            text: "📂";
+                            font-size: 12px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        act_open_touch := TouchArea {
+                            clicked => { root.request-open(); }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 4px;
+                        background: act_save_touch.has-hover ? #2e2e2e : transparent;
+                        y: (parent.height - self.height) / 2;
+                        Text {
+                            text: "💾";
+                            font-size: 12px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        act_save_touch := TouchArea {
+                            clicked => { root.request-save(); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==================== DROPDOWN MENU (ARQUIVO / EDITAR / EXIBIR) ====================
+        if root.show-menu-dropdown: Rectangle {
+            height: 36px;
+            background: #262626;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 12px;
+                alignment: start;
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: m_new_touch.has-hover ? #333333 : transparent;
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text { text: "Nova Guia (Ctrl+T)"; color: #e0e0e0; font-size: 12px; vertical-alignment: center; }
+                    }
+                    m_new_touch := TouchArea { clicked => { root.new-tab(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: m_open_touch.has-hover ? #333333 : transparent;
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text { text: "Abrir (Ctrl+O)"; color: #e0e0e0; font-size: 12px; vertical-alignment: center; }
+                    }
+                    m_open_touch := TouchArea { clicked => { root.request-open(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: m_save_touch.has-hover ? #333333 : transparent;
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text { text: "Salvar (Ctrl+S)"; color: #e0e0e0; font-size: 12px; vertical-alignment: center; }
+                    }
+                    m_save_touch := TouchArea { clicked => { root.request-save(); root.toggle-menu(); } }
+                }
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: m_saveas_touch.has-hover ? #333333 : transparent;
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text { text: "Salvar como (Ctrl+Shift+S)"; color: #e0e0e0; font-size: 12px; vertical-alignment: center; }
+                    }
+                    m_saveas_touch := TouchArea { clicked => { root.request-save-as(); root.toggle-menu(); } }
+                }
+
                 Rectangle { horizontal-stretch: 1; }
 
-                // Action buttons on top-right
-                Button {
-                    text: "Nova Nota";
-                    clicked => { root.request-new(); }
-                }
-                Button {
-                    text: "Abrir";
-                    clicked => { root.request-open(); }
-                }
-                Button {
-                    text: "Salvar";
-                    clicked => { root.request-save(); }
+                Rectangle {
+                    border-radius: 4px;
+                    background: m_close_touch.has-hover ? #333333 : transparent;
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text { text: "✕ Fechar Menu"; color: #9a9a9a; font-size: 12px; vertical-alignment: center; }
+                    }
+                    m_close_touch := TouchArea { clicked => { root.toggle-menu(); } }
                 }
             }
         }
 
-        Rectangle {
-            height: 1px;
-            background: #2d2d2d;
-        }
+        // ==================== COVER PRESETS POPUP ====================
+        if root.show-cover-picker: Rectangle {
+            height: 52px;
+            background: #222222;
 
-        // OPTIONAL POPUP: Cover Gallery
-        if root.show-cover-picker: VerticalLayout {
-            spacing: 0px;
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 8px;
+                alignment: center;
 
-            Rectangle {
-                height: 90px;
-                background: #252525;
+                Text {
+                    text: "Galeria de Capas:";
+                    color: #9a9a9a;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
 
-                VerticalLayout {
-                    padding: 10px;
-                    spacing: 8px;
+                Rectangle { width: 6px; }
 
+                // Sunset Gradient (Anexo 2 default)
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: @linear-gradient(90deg, #FF416C 0%, #FF4B2B 100%);
+                    TouchArea { clicked => { root.apply-cover-preset(0); } }
+                }
+                // Aurora
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: @linear-gradient(90deg, #0F2027 0%, #2C5364 100%);
+                    TouchArea { clicked => { root.apply-cover-preset(1); } }
+                }
+                // Cyberpunk
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: @linear-gradient(90deg, #2E0854 0%, #D62976 100%);
+                    TouchArea { clicked => { root.apply-cover-preset(2); } }
+                }
+                // Esmeralda
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: @linear-gradient(90deg, #051923 0%, #00A896 100%);
+                    TouchArea { clicked => { root.apply-cover-preset(3); } }
+                }
+                // Brasa
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: @linear-gradient(90deg, #1A1A1A 0%, #C84B31 100%);
+                    TouchArea { clicked => { root.apply-cover-preset(4); } }
+                }
+                // Noite
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: @linear-gradient(90deg, #09122C 0%, #2C3E50 100%);
+                    TouchArea { clicked => { root.apply-cover-preset(5); } }
+                }
+                // Oceano
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: #142850;
+                    TouchArea { clicked => { root.apply-cover-preset(6); } }
+                }
+                // Púrpura
+                Rectangle {
+                    width: 32px; height: 24px; border-radius: 4px;
+                    background: #2A163E;
+                    TouchArea { clicked => { root.apply-cover-preset(7); } }
+                }
+
+                Rectangle { width: 10px; }
+
+                Rectangle {
+                    height: 26px; border-radius: 4px;
+                    background: #2c2c2c;
+                    y: (parent.height - self.height) / 2;
                     HorizontalLayout {
-                        Text {
-                            text: "Escolha uma Capa para o Documento:";
-                            color: #cccccc;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                        Rectangle { horizontal-stretch: 1; }
-                        Button {
-                            text: "Fechar";
-                            clicked => { root.toggle-cover-picker(); }
-                        }
+                        padding-left: 10px; padding-right: 10px;
+                        Text { text: "Sem Capa"; color: #e0e0e0; font-size: 12px; vertical-alignment: center; }
                     }
+                    TouchArea { clicked => { root.remove-cover(); } }
+                }
 
+                Rectangle {
+                    height: 26px; border-radius: 4px;
+                    background: #2c2c2c;
+                    y: (parent.height - self.height) / 2;
                     HorizontalLayout {
-                        spacing: 8px;
-
-                        Button { text: "🌌 Aurora"; clicked => { root.apply-cover-preset(0); } }
-                        Button { text: "🌆 Cyberpunk"; clicked => { root.apply-cover-preset(1); } }
-                        Button { text: "🌅 Pôr do Sol"; clicked => { root.apply-cover-preset(2); } }
-                        Button { text: "🌲 Esmeralda"; clicked => { root.apply-cover-preset(3); } }
-                        Button { text: "🌋 Brasa"; clicked => { root.apply-cover-preset(4); } }
-                        Button { text: "🌃 Noite"; clicked => { root.apply-cover-preset(5); } }
-                        Button { text: "🌊 Oceano"; clicked => { root.apply-cover-preset(6); } }
-                        Button { text: "👑 Púrpura"; clicked => { root.apply-cover-preset(7); } }
-                        Button { text: "Sem Capa"; clicked => { root.remove-cover(); } }
+                        padding-left: 10px; padding-right: 10px;
+                        Text { text: "✕ Fechar"; color: #888888; font-size: 12px; vertical-alignment: center; }
                     }
+                    TouchArea { clicked => { root.toggle-cover-picker(); } }
                 }
             }
-
-            Rectangle {
-                height: 1px;
-                background: #383838;
-            }
         }
 
-        // OPTIONAL POPUP: Emoji Picker
-        if root.show-icon-picker: VerticalLayout {
-            spacing: 0px;
+        // ==================== EMOJI PICKER POPUP ====================
+        if root.show-icon-picker: Rectangle {
+            height: 48px;
+            background: #222222;
 
-            Rectangle {
-                height: 80px;
-                background: #252525;
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 6px;
+                alignment: center;
 
-                VerticalLayout {
-                    padding: 10px;
-                    spacing: 8px;
+                for icon in ["😍", "💻", "📝", "📓", "💡", "🚀", "🦀", "🎯", "⚡", "📚", "🛠️", "🎨", "🌐", "☕", "🔍", "📌", "⭐", "🧠", "🏷️", "📂", "🔔", "🔑"]: Rectangle {
+                    width: 30px; height: 30px; border-radius: 4px;
+                    background: e_touch.has-hover ? #383838 : transparent;
+                    y: (parent.height - self.height) / 2;
+                    Text { text: icon; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; }
+                    e_touch := TouchArea { clicked => { root.apply-icon(icon); } }
+                }
 
+                Rectangle { width: 8px; }
+
+                Rectangle {
+                    height: 26px; border-radius: 4px;
+                    background: #2c2c2c;
+                    y: (parent.height - self.height) / 2;
                     HorizontalLayout {
-                        Text {
-                            text: "Selecione um Ícone para a Página:";
-                            color: #cccccc;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                        Rectangle { horizontal-stretch: 1; }
-                        Button {
-                            text: "Remover Ícone";
-                            clicked => { root.remove-icon(); }
-                        }
-                        Button {
-                            text: "Fechar";
-                            clicked => { root.toggle-icon-picker(); }
-                        }
+                        padding-left: 10px; padding-right: 10px;
+                        Text { text: "Remover"; color: #e0e0e0; font-size: 12px; vertical-alignment: center; }
                     }
+                    TouchArea { clicked => { root.remove-icon(); } }
+                }
 
+                Rectangle {
+                    height: 26px; border-radius: 4px;
+                    background: #2c2c2c;
+                    y: (parent.height - self.height) / 2;
                     HorizontalLayout {
-                        spacing: 6px;
-                        for icon in ["📝", "📓", "💡", "🚀", "💻", "🦀", "🎯", "⚡", "📚", "🛠️", "🎨", "🌐", "☕", "🔍", "📌", "⭐", "🧠", "🏷️", "📂", "🔔", "🔑"]: Rectangle {
-                            width: 32px;
-                            height: 32px;
-                            border-radius: 4px;
-                            background: icon_btn_touch.has-hover ? #3c3c3c : #2f2f2f;
-
-                            Text {
-                                text: icon;
-                                font-size: 18px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-
-                            icon_btn_touch := TouchArea {
-                                clicked => { root.apply-icon(icon); }
-                            }
-                        }
+                        padding-left: 10px; padding-right: 10px;
+                        Text { text: "✕"; color: #888888; font-size: 12px; vertical-alignment: center; }
                     }
+                    TouchArea { clicked => { root.toggle-icon-picker(); } }
                 }
             }
-
-            Rectangle {
-                height: 1px;
-                background: #383838;
-            }
         }
 
-        // MAIN DOCUMENT CANVAS
-        ScrollView {
+        // ==================== 2. MAIN DOCUMENT CANVAS (SCROLLABLE NOTION PAGE) ====================
+        Flickable {
             vertical-stretch: 1;
+            content-height: 1200px;
 
             VerticalLayout {
                 spacing: 0px;
 
-                // COVER BANNER (if active)
+                // FULL-WIDTH COVER BANNER (220px height)
                 if root.has-cover: Rectangle {
-                    height: 160px;
+                    height: 220px;
                     clip: true;
 
                     if root.cover-is-gradient: Rectangle {
-                        background: @linear-gradient(135deg, root.cover-color-1 0%, root.cover-color-2 100%);
+                        background: @linear-gradient(90deg, root.cover-color-1 0%, root.cover-color-2 100%);
                     }
                     if !root.cover-is-gradient: Rectangle {
                         background: root.cover-color-1;
                     }
 
-                    // Hover controls on the cover
-                    cover_hover := TouchArea {}
+                    // Hover controls on the cover (frosted pill in top right corner)
+                    cover_hover := TouchArea {
+                        width: 100%;
+                        height: 100%;
 
-                    if cover_hover.has-hover: HorizontalLayout {
-                        alignment: end;
-                        padding: 12px;
-                        spacing: 8px;
+                        if self.has-hover: Rectangle {
+                            x: parent.width - self.width - 24px;
+                            y: 16px;
+                            height: 32px;
+                            width: 200px;
+                            border-radius: 6px;
+                            background: #141414b0;
+                            border-width: 1px;
+                            border-color: #ffffff20;
 
-                        Button {
-                            text: "Alterar Capa";
-                            clicked => { root.toggle-cover-picker(); }
-                        }
-                        Button {
-                            text: "Remover";
-                            clicked => { root.remove-cover(); }
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+
+                                Rectangle {
+                                    border-radius: 4px;
+                                    background: btn_chg_touch.has-hover ? #2e2e2e : transparent;
+                                    height: 24px;
+                                    y: (parent.height - self.height) / 2;
+                                    HorizontalLayout {
+                                        padding-left: 8px; padding-right: 8px;
+                                        Text { text: "Alterar capa"; font-size: 12px; color: #ffffff; vertical-alignment: center; }
+                                    }
+                                    btn_chg_touch := TouchArea { clicked => { root.toggle-cover-picker(); } }
+                                }
+
+                                Rectangle { width: 1px; height: 14px; background: #ffffff30; y: (parent.height - self.height) / 2; }
+
+                                Rectangle {
+                                    border-radius: 4px;
+                                    background: btn_rem_touch.has-hover ? #2e2e2e : transparent;
+                                    height: 24px;
+                                    y: (parent.height - self.height) / 2;
+                                    HorizontalLayout {
+                                        padding-left: 8px; padding-right: 8px;
+                                        Text { text: "Remover"; font-size: 12px; color: #ffffff; vertical-alignment: center; }
+                                    }
+                                    btn_rem_touch := TouchArea { clicked => { root.remove-cover(); } }
+                                }
+                            }
                         }
                     }
                 }
 
-                // DOCUMENT BODY AREA
-                VerticalLayout {
-                    padding-left: 48px;
-                    padding-right: 48px;
-                    padding-top: 20px;
-                    padding-bottom: 30px;
-                    spacing: 16px;
+                // CENTERED PAGE CONTAINER (MaxWidth 860px, Notion Editorial layout)
+                HorizontalLayout {
+                    alignment: center;
 
-                    // Hover bar when no cover or no icon
-                    HorizontalLayout {
-                        spacing: 12px;
+                    VerticalLayout {
+                        width: 860px;
+                        spacing: 0px;
 
-                        if !root.has-cover: Rectangle {
-                            height: 28px;
-                            width: 130px;
-                            border-radius: 4px;
-                            background: add_cov_touch.has-hover ? #2a2a2a : transparent;
-
-                            Text {
-                                text: "+ Adicionar capa";
-                                font-size: 13px;
-                                color: add_cov_touch.has-hover ? #ffffff : #707070;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-
-                            add_cov_touch := TouchArea {
-                                clicked => { root.toggle-cover-picker(); }
-                            }
-                        }
-
-                        if root.document-icon == "": Rectangle {
-                            height: 28px;
-                            width: 130px;
-                            border-radius: 4px;
-                            background: add_icn_touch.has-hover ? #2a2a2a : transparent;
-
-                            Text {
-                                text: "+ Adicionar ícone";
-                                font-size: 13px;
-                                color: add_icn_touch.has-hover ? #ffffff : #707070;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-
-                            add_icn_touch := TouchArea {
-                                clicked => { root.toggle-icon-picker(); }
-                            }
-                        }
-
-                        Rectangle { horizontal-stretch: 1; }
-                    }
-
-                    // Page Icon (Notion signature size & overlap)
-                    if root.document-icon != "": HorizontalLayout {
+                        // Notion Signature Overlapping Emoji Badge
                         Rectangle {
-                            width: 58px;
-                            height: 58px;
-                            border-radius: 8px;
-                            background: icon_main_touch.has-hover ? #2c2c2c : transparent;
+                            height: root.has-cover ? 44px : (root.document-icon != "" ? 76px : 32px);
 
-                            Text {
-                                text: root.document-icon;
-                                font-size: 42px;
-                                horizontal-alignment: center;
+                            // The circular/rounded badge (half overlapping cover, half in body)
+                            if root.document-icon != "": Rectangle {
+                                x: 0px;
+                                y: root.has-cover ? -38px : 4px;
+                                width: 76px;
+                                height: 76px;
+                                border-radius: 38px;
+                                background: #191919;
+                                border-width: 3px;
+                                border-color: #191919;
+
+                                emoji_touch := TouchArea {
+                                    clicked => { root.toggle-icon-picker(); }
+                                }
+
+                                Text {
+                                    text: root.document-icon;
+                                    font-size: 44px;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // If no cover or no icon: subtle hover action line
+                            header_hover := TouchArea {
+                                width: 300px;
+                                height: 32px;
+                                x: 0px;
+                                y: 4px;
+
+                                if self.has-hover: HorizontalLayout {
+                                    spacing: 12px;
+
+                                    if root.document-icon == "": Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: #252525;
+                                        HorizontalLayout {
+                                            padding-left: 8px; padding-right: 8px;
+                                            Text { text: "🙂 Adicionar ícone"; font-size: 12px; color: #909090; vertical-alignment: center; }
+                                        }
+                                        TouchArea { clicked => { root.toggle-icon-picker(); } }
+                                    }
+
+                                    if !root.has-cover: Rectangle {
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: #252525;
+                                        HorizontalLayout {
+                                            padding-left: 8px; padding-right: 8px;
+                                            Text { text: "🖼️ Adicionar capa"; font-size: 12px; color: #909090; vertical-alignment: center; }
+                                        }
+                                        TouchArea { clicked => { root.toggle-cover-picker(); } }
+                                    }
+                                }
+                            }
+                        }
+
+                        // PAGE TITLE (Huge, pure typography, seamless)
+                        Rectangle {
+                            height: 54px;
+
+                            if root.document-title == "": Text {
+                                x: 0px;
+                                y: 0px;
+                                text: "Nova página";
+                                font-size: 36px;
+                                font-weight: 700;
+                                color: #4b4b4b;
                                 vertical-alignment: center;
                             }
 
-                            icon_main_touch := TouchArea {
-                                clicked => { root.toggle-icon-picker(); }
+                            TextInput {
+                                x: 0px;
+                                y: 0px;
+                                width: 100%;
+                                height: 100%;
+                                text <=> root.document-title;
+                                font-size: 36px;
+                                font-weight: 700;
+                                color: #ffffff;
+                                single-line: true;
+                                vertical-alignment: center;
+                                edited => { root.title-edited(self.text); }
                             }
                         }
-                        Rectangle { horizontal-stretch: 1; }
-                    }
 
-                    // Page Title
-                    HorizontalLayout {
-                        TextInput {
-                            text <=> root.document-title;
-                            font-size: 32px;
-                            font-weight: 700;
-                            color: #ffffff;
-                            single-line: true;
-                            edited => {
-                                root.title-edited(root.document-title);
+                        Rectangle { height: 16px; }
+
+                        // FLOATING FORMATTING BAR (Notion pill)
+                        Rectangle {
+                            height: 34px;
+                            width: 320px;
+                            border-radius: 7px;
+                            background: #242424f0;
+                            border-width: 1px;
+                            border-color: #383838;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 6px;
+                                alignment: center;
+
+                                Text { text: "T Texto normal ▾"; font-size: 12px; color: #d0d0d0; vertical-alignment: center; }
+                                Rectangle { width: 1px; height: 14px; background: #383838; y: (parent.height - self.height) / 2; }
+                                Text { text: "A"; font-size: 12px; font-weight: 700; color: #f0f0f0; vertical-alignment: center; }
+                                Text { text: "B"; font-size: 12px; font-weight: 700; color: #f0f0f0; vertical-alignment: center; }
+                                Text { text: "I"; font-size: 12px; font-italic: true; color: #f0f0f0; vertical-alignment: center; }
+                                Text { text: "U"; font-size: 12px; color: #f0f0f0; vertical-alignment: center; }
+                                Text { text: "S"; font-size: 12px; color: #f0f0f0; vertical-alignment: center; }
+                                Rectangle { width: 1px; height: 14px; background: #383838; y: (parent.height - self.height) / 2; }
+                                Text { text: "🔗"; font-size: 12px; color: #529cfd; vertical-alignment: center; }
                             }
                         }
-                    }
 
-                    // Page Text Content
-                    TextEdit {
-                        text <=> root.editor-text;
-                        placeholder-text: "Comece a escrever...";
-                        font-size: 16px;
-                        edited(_text) => {
-                            root.document-edited(root.editor-text);
+                        Rectangle { height: 16px; }
+
+                        // PAGE BODY EDITOR (Seamless, zero borders, pure dark canvas)
+                        Rectangle {
+                            min-height: 400px;
+
+                            if root.editor-text == "": Text {
+                                x: 0px;
+                                y: 4px;
+                                text: "Clique na barra de espaço para ativar a IA ou \"/\" para acessar os comandos";
+                                font-size: 15px;
+                                color: #4b4b4b;
+                            }
+
+                            TextInput {
+                                x: 0px;
+                                y: 0px;
+                                width: 100%;
+                                min-height: 400px;
+                                text <=> root.editor-text;
+                                color: #f0f0f0;
+                                font-size: 15px;
+                                wrap: word-wrap;
+                                single-line: false;
+                                edited => { root.document-edited(self.text); }
+                            }
                         }
+
+                        Rectangle { height: 120px; }
                     }
                 }
             }
         }
 
-        // BOTTOM STATUS BAR
+        // ==================== 3. MINIMALIST NOTIONPAD STATUS BAR ====================
         Rectangle {
-            height: 1px;
-            background: #282828;
-        }
-
-        Rectangle {
-            height: 28px;
-            background: #202020;
+            height: 24px;
+            background: #1f1f1f;
+            border-width: 1px;
+            border-color: #262626;
 
             HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
+                padding-left: 14px;
+                padding-right: 14px;
                 spacing: 16px;
+                alignment: stretch;
+
+                // Left stats: Ln, Col and Characters
+                Text {
+                    text: root.status-line-col;
+                    color: #707070;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.status-chars;
+                    color: #707070;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
 
                 Text {
                     text: root.status-message;
-                    color: #909090;
-                    font-size: 12px;
+                    color: #555555;
+                    font-size: 11px;
                     vertical-alignment: center;
                 }
 
                 Rectangle { horizontal-stretch: 1; }
 
+                // Right stats: Language, Zoom, CRLF, Encoding
                 Text {
-                    text: root.stats-text;
+                    text: root.language-text + " ▾";
                     color: #888888;
                     font-size: 11px;
                     vertical-alignment: center;
                 }
 
                 Text {
-                    text: root.encoding-text;
-                    color: #777777;
+                    text: "100%";
+                    color: #707070;
                     font-size: 11px;
                     vertical-alignment: center;
                 }
 
                 Text {
-                    text: root.mode-text;
-                    color: #4a9eff;
+                    text: root.line-ending-text;
+                    color: #707070;
                     font-size: 11px;
-                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.encoding-text;
+                    color: #707070;
+                    font-size: 11px;
                     vertical-alignment: center;
                 }
             }
